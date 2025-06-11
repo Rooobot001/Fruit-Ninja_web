@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fruit Ninja Simplified</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        font-family: sans-serif;
+        background-color: #f0f0f0;
+      }
+
+      canvas {
+        display: block;
+        background-color: white;
+      }
+
+      #gameStatus {
+        position: fixed;
+        bottom: 50px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(255, 255, 255, 0.85);
+        padding: 20px 30px;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+        text-align: center;
+      }
+
+      #statusText {
+        font-size: 20px;
+        margin-bottom: 10px;
+      }
+
+      .game-button {
+        padding: 10px 20px;
+        font-size: 18px;
+        margin: 5px;
+        border: none;
+        border-radius: 8px;
+        background-color: #4caf50;
+        color: white;
+        cursor: pointer;
+        transition: 0.3s;
+      }
+
+      .game-button:hover {
+        background-color: #45a049;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="gameStatus">
+      <div id="statusText">🍉 準備開始 Fruit Ninja！</div>
+      <button class="game-button" onclick="startGame()">🎮 開始遊戲</button>
+      <button
+        class="game-button"
+        id="restartBtn"
+        onclick="restartGame()"
+        style="display: none"
+      >
+        🔄 重新開始
+      </button>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+
+      let WIDTH = window.innerWidth;
+      let HEIGHT = window.innerHeight;
+      canvas.width = WIDTH;
+      canvas.height = HEIGHT;
+
+      window.addEventListener("resize", () => {
+        WIDTH = window.innerWidth;
+        HEIGHT = window.innerHeight;
+        canvas.width = WIDTH;
+        canvas.height = HEIGHT;
+      });
+
+      const statusText = document.getElementById("statusText");
+      const restartBtn = document.getElementById("restartBtn");
+
+      let fruitImages = [];
+      let fruits = [];
+      let score = 0;
+      let missedFruits = 0;
+      let gameOver = false;
+      let gameStarted = false;
+
+      const fruitSrcs = ["apple.png", "banana.png", "orange.png"];
+      let loadedImages = 0;
+
+      for (let src of fruitSrcs) {
+        const img = new Image();
+        img.src = "images/" + src;
+        img.onload = () => {
+          loadedImages++;
+          if (loadedImages === fruitSrcs.length) {
+            statusText.textContent = "🍉 所有水果載入完成，按下開始！";
+          }
+        };
+        fruitImages.push(img);
+      }
+
+      class Fruit {
+        constructor() {
+          this.image =
+            fruitImages[Math.floor(Math.random() * fruitImages.length)];
+          this.x = Math.random() * (WIDTH - 100) + 50;
+          this.y = HEIGHT + 50;
+          this.speed = Math.random() * 3 + 2;
+          this.size = 50;
+        }
+
+        move() {
+          this.y -= this.speed;
+        }
+
+        draw() {
+          ctx.drawImage(
+            this.image,
+            this.x - 25,
+            this.y - 25,
+            this.size,
+            this.size
+          );
+        }
+
+        isClicked(x, y) {
+          return (
+            x >= this.x - 25 &&
+            x <= this.x + 25 &&
+            y >= this.y - 25 &&
+            y <= this.y + 25
+          );
+        }
+
+        isOutOfScreen() {
+          return this.y + this.size / 2 < 0;
+        }
+      }
+
+      canvas.addEventListener("mousedown", (event) => {
+        if (!gameStarted || gameOver) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        for (let i = 0; i < fruits.length; i++) {
+          if (fruits[i].isClicked(x, y)) {
+            fruits.splice(i, 1);
+            score++;
+            break;
+          }
+        }
+      });
+
+      function startGame() {
+        if (!gameStarted) {
+          gameStarted = true;
+          gameOver = false;
+          score = 0;
+          missedFruits = 0;
+          fruits = [];
+
+          statusText.textContent = "遊戲進行中，加油！";
+          restartBtn.style.display = "none";
+
+          requestAnimationFrame(gameLoop);
+        }
+      }
+
+      function restartGame() {
+        gameStarted = true;
+        gameOver = false;
+        score = 0;
+        missedFruits = 0;
+        fruits = [];
+
+        statusText.textContent = "遊戲重新開始！";
+        restartBtn.style.display = "none";
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      function gameLoop() {
+        ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+        if (!gameOver) {
+          if (Math.random() < 0.05 && fruits.length < 3) {
+            fruits.push(new Fruit());
+          }
+
+          for (let i = fruits.length - 1; i >= 0; i--) {
+            fruits[i].move();
+            fruits[i].draw();
+
+            if (fruits[i].isOutOfScreen()) {
+              fruits.splice(i, 1);
+              missedFruits++;
+              if (missedFruits >= 10) {
+                gameOver = true;
+                gameStarted = false;
+                statusText.textContent =
+                  "💀 你輸了！點擊『重新開始』再試一次。";
+                restartBtn.style.display = "inline-block";
+              }
+            }
+          }
+        }
+
+        ctx.fillStyle = "black";
+        ctx.font = "24px sans-serif";
+        ctx.fillText(`Score: ${score}`, 10, 30);
+        ctx.fillText(`Missed: ${missedFruits}`, 10, 60);
+
+        if (!gameOver && gameStarted) {
+          requestAnimationFrame(gameLoop);
+        }
+      }
+    </script>
+  </body>
+</html>
